@@ -2,7 +2,7 @@
 
 Standalone prototype repository for Infrastructure-as-Code security checks aligned to the Mifos Gazelle project idea.
 
-This repository now includes both:
+This repository includes:
 - CLI scanner mode (local Terraform path scan)
 - Web scanner mode (single-page UI where a repo URL is submitted and scanned)
 
@@ -12,7 +12,7 @@ This repository contains a working scanner toolkit that supports both command-li
 
 CLI mode scans local Terraform files and prints rich severity output with optional CSV/PDF reports.
 
-Web mode provides a minimal single-page frontend (no dashboard side tabs) that accepts a repository URL and runs backend scanning.
+Web mode provides a minimal single-page frontend that accepts a repository URL and runs backend scanning.
 
 This is a prototype to demonstrate implementation readiness and delivery approach for Mifos Gazelle style IaC security gating.
 
@@ -25,21 +25,6 @@ This is a prototype to demonstrate implementation readiness and delivery approac
   - CSV report
   - PDF audit report
 - File-level or directory-level scan target support
-
-## Mifos Alignment
-
-This prototype is designed to show how secure-by-default checks can be enforced before deployment:
-
-- Scan IaC changes early
-- Highlight risky misconfigurations
-- Produce reviewer-friendly output
-- Extend toward CI pull request policy gates
-
-Planned extensions for full Mifos workflow:
-- Checkov and Terrascan integration
-- KubeLinter for Helm/Kubernetes manifests
-- Gitleaks pre-commit and CI secret detection
-- CI fail gate for Critical/High findings
 
 ## Prerequisites
 
