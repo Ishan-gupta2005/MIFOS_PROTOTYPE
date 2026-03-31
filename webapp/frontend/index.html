@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mifos Gazelle IaC Scanner Prototype</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --card: #fffaf0;
+      --ink: #1f2a37;
+      --accent: #0f766e;
+      --accent-2: #ea580c;
+      --line: #d9d2c3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 20%, rgba(15, 118, 110, 0.15), transparent 28%),
+        radial-gradient(circle at 90% 10%, rgba(234, 88, 12, 0.15), transparent 25%),
+        var(--bg);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .panel {
+      width: min(900px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+    .head {
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(15, 118, 110, 0.08), rgba(234, 88, 12, 0.08));
+    }
+    h1 { margin: 0; font-size: 1.35rem; }
+    p { margin: 8px 0 0; color: #4b5563; }
+    .body { padding: 22px 24px; }
+    label { font-weight: 600; display: block; margin-bottom: 8px; }
+    .row { display: flex; gap: 10px; }
+    input {
+      flex: 1;
+      border: 1px solid #c7c0b2;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+    button.secondary { background: var(--accent-2); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .actions { margin-top: 12px; display: flex; gap: 10px; }
+    .status {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #eef8f7;
+      border: 1px solid #b7dfdb;
+      color: #0f4f49;
+      display: none;
+    }
+    .status.error {
+      display: block;
+      background: #fff0eb;
+      border-color: #f0b39c;
+      color: #7c2d12;
+    }
+    .status.show { display: block; }
+    .table-wrap { margin-top: 18px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border-bottom: 1px solid #efe9dd; padding: 10px; text-align: left; font-size: 0.9rem; }
+    th { background: #f9f5ec; }
+    .sev { font-weight: 700; }
+    .sev.CRITICAL { color: #b91c1c; }
+    .sev.HIGH { color: #dc2626; }
+    .sev.MEDIUM { color: #d97706; }
+    .sev.LOW { color: #2563eb; }
+    .small { margin-top: 8px; color: #6b7280; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <section class="head">
+      <h1>Mifos Gazelle IaC Scanner</h1>
+    </section>
+    <section class="body">
+      <label for="repoUrl">Repository URL</label>
+      <div class="row">
+        <input id="repoUrl" type="url" placeholder="https://github.com/example-org/example-iac-repo" />
+        <button id="scanBtn">Run Scan</button>
+      </div>
+      <div class="actions">
+        <button id="pdfBtn" class="secondary" disabled>Download PDF</button>
+        <button id="csvBtn" class="secondary" disabled>Download CSV</button>
+      </div>
+      <div id="status" class="status"></div>
+      <div class="small" id="meta"></div>
+      <div class="table-wrap">
+        <table id="resultsTable" hidden>
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Rule</th>
+              <th>Resource</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const repoInput = document.getElementById('repoUrl');
+    const scanBtn = document.getElementById('scanBtn');
+    const pdfBtn = document.getElementById('pdfBtn');
+    const csvBtn = document.getElementById('csvBtn');
+    const statusEl = document.getElementById('status');
+    const metaEl = document.getElementById('meta');
+    const table = document.getElementById('resultsTable');
+    const tbody = table.querySelector('tbody');
+
+    let currentScanId = null;
+
+    function setStatus(msg, isError = false) {
+      statusEl.textContent = msg;
+      statusEl.className = isError ? 'status show error' : 'status show';
+    }
+
+    function clearResults() {
+      tbody.innerHTML = '';
+      table.hidden = true;
+      currentScanId = null;
+      pdfBtn.disabled = true;
+      csvBtn.disabled = true;
+      metaEl.textContent = '';
+    }
+
+    function renderResults(results) {
+      tbody.innerHTML = '';
+      results.forEach((row) => {
+        const tr = document.createElement('tr');
+        const severity = String(row.severity || 'LOW').toUpperCase();
+        tr.innerHTML = `
+          <td class="sev ${severity}">${severity}</td>
+          <td>${row.rule_id || '-'}</td>
+          <td>${row.resource || '-'}</td>
+          <td>${row.rule_description || row.description || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      table.hidden = results.length === 0;
+    }
+
+    async function runScan() {
+      const repoUrl = repoInput.value.trim();
+      if (!repoUrl) {
+        setStatus('Please enter a repository URL.', true);
+        return;
+      }
+
+      clearResults();
+      scanBtn.disabled = true;
+      setStatus('Running scan... this may take a minute.');
+
+      try {
+        const response = await fetch('/api/mifos-gazelle/iac/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repoUrl })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || 'Scan failed');
+        }
+
+        currentScanId = payload.scanId;
+        const results = payload.results || [];
+        renderResults(results);
+
+        const critical = results.filter(r => String(r.severity || '').toUpperCase() === 'CRITICAL').length;
+        const high = results.filter(r => String(r.severity || '').toUpperCase() === 'HIGH').length;
+        metaEl.textContent = `Scan ID: ${currentScanId} | Findings: ${results.length} | Critical: ${critical} | High: ${high}`;
+        setStatus('Scan completed successfully.');
+        pdfBtn.disabled = false;
+        csvBtn.disabled = false;
+      } catch (err) {
+        setStatus(err.message, true);
+      } finally {
+        scanBtn.disabled = false;
+      }
+    }
+
+    function downloadReport(fmt) {
+      if (!currentScanId) {
+        return;
+      }
+      window.open(`/api/mifos-gazelle/iac/export?scanId=${encodeURIComponent(currentScanId)}&format=${fmt}`, '_blank');
+    }
+
+    scanBtn.addEventListener('click', runScan);
+    pdfBtn.addEventListener('click', () => downloadReport('pdf'));
+    csvBtn.addEventListener('click', () => downloadReport('csv'));
+  </script>
+</body>
+</html>

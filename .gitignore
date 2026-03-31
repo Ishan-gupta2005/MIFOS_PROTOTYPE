@@ -1,0 +1,16 @@
+# Python build artifacts
+dist/
+build/
+*.egg-info/
+__pycache__/
+.pypirc
+scan_report.csv
+scan_report.pdf
+report_*.csv
+report_*.pdf
+.venv/
+.env
+webapp/.env
+webapp/temp_scans/
+webapp/__pycache__/
+webapp/app/**/__pycache__/
